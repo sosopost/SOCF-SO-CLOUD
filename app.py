@@ -3,45 +3,47 @@ import os
 import platform
 import psutil
 
-app = Flask(__name__)
+nome_integrante = [
+    "Sophia Post Ploposki"
+]
 
-integrantes = ["Sophia Ploposki"]
+# Instância Flask requisitada pelo Render (gunicorn app:APP)
+APP = Flask(__name__)
 
-@app.route("/")
-def home():
-    process = psutil.Process(os.getpid())  # processo atual
-    mem_info = process.memory_info().rss / (1024 * 1024)  # memória em MB
-    cpu_percent = psutil.cpu_percent(interval=0.5)  #CPU em %
+def get_metricas():
+    proc = psutil.Process(os.getpid())
+    pid = proc.pid
+    memoria_mb = proc.memory_info().rss / (1024 * 1024)
+    cpu_percent = proc.cpu_percent(interval=0.1)
+    so = platform.system()
+    return {
+        "Nome": " e ".join(nome_integrante),
+        "PID": pid,
+        "Memória usada (MB)": round(memoria_mb, 2),
+        "CPU (%)": round(cpu_percent, 2),  
+        "Sistema Operacional": so
+    }
 
-    info = f"""
-    <h2>Informações do Sistema</h2>
-    <p><b>Integrantes:</b> {', '.join(integrantes)}</p>
-    <p><b>PID:</b> {process.pid}</p>
-    <p><b>Memória utilizada:</b> {mem_info:.2f} MB</p>
-    <p><b>Uso de CPU:</b> {cpu_percent:.2f}%</p>
-    <p><b>Sistema Operacional:</b> {platform.system()} ({platform.release()})</p>
-    """
-    return info
-
-@app.route("/info")
+# Rota /info — exibe somente o nome da integrante (JSON)
+@APP.route('/info')
 def info():
-    return f"<p>Integrantes da equipe: {', '.join(integrantes)}</p>"
+    return jsonify({"Nome": " e ".join(nome_integrante)})
 
-@app.route("/metrics")
-def metrics():
-    process = psutil.Process(os.getpid())
-    mem_info = process.memory_info().rss / (1024 * 1024)
-    cpu_percent = psutil.cpu_percent(interval=0.5)
-    sistema = f"{platform.system()} ({platform.release()})"
+# Rota /metricas — retorna as informações pedidas em JSON
+@APP.route('/metricas')
+def metricas():
+    dados = get_metricas()
+    return jsonify(dados)
 
-    return jsonify({
-        "integrantes": integrantes,
-        "PID": process.pid,
-        "memoria_MB": round(mem_info, 2),
-        "cpu_percent": round(cpu_percent, 2),
-        "sistema_operacional": sistema
-    })
+# Rota raiz opcional para ver algo no navegador
+@APP.route('/')
+def index():
+    return (
+        "<pre>Servidor Flask ativo. Rotas:\n"
+        "/info -> nome da integrante\n"
+        "/metricas -> métricas do servidor (JSON)</pre>"
+    )
 
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+if __name__ == '__main__':
+    # Para execução local durante desenvolvimento
+    APP.run(host='0.0.0.0', port=5000, debug=True)
